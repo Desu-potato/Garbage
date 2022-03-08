@@ -73,15 +73,88 @@ class build:
         self.input = input
         self.output = output
 
+
 #local staff
+class ruleSet:
+    def __init__(self):
+        self.demandRule = {}
+        self.prioRule = {}
+        self.foodRule = {}
+
+    def modPrio(self, mapRule):
+        self.prioRule = mapRule
+
+    def modDem(self, mapRule):
+        self.demandRule = mapRule
+
+    def modFood(self, mapRule):
+        self.foodRule = mapRule
+
+
 class demand:
     def __init__(self):
-        self.mapDemand = {}
+        self.pop = 0
+        self.foodNeeds = {}
         self.popDemand = {}
-        self.buildDemand = {}
 
-    def calculatePopDemand(self, base, pop):
-        pass
+    def calculatePopDemand(self, pop, rule):
+        bufor = {}
+        for record in rule:
+            bufor[record] = round(rule[record][0]/pop,2)*rule[record][1]
+        self.popDemand = bufor
+
+    def calculateRationUsage(self, stock, rule, pop, ration):
+        bufor = {}
+        for record in pop:
+            bufor[record] = pop[record]*ration[record]
+
+        b = 0
+        for record in bufor:
+            b = bufor[record]+b
+        bufor = {}
+        for key in stock:
+            if key in list(rule.keys()):
+                bufor[key] = stock[key]
+
+        le = len(bufor)
+        median = b/le
+        for record in bufor:
+            bufor[record] = bufor[record] - median/rule[record][1]
+
+        for key in stock:
+            if key in list(bufor.keys()):
+                stock[key] = bufor[key]
+
+        return stock
+
+
+
+        # bufor = 0
+        # for record in pop:
+        #     bufor = bufor + pop[record]*rule[record]
+        #
+        # self.popDemand = bufor
+
+    def calculateConsumption(self, stock, rule, pop):
+        b = 0
+        for record in pop:
+            b = b + pop[record]
+
+        bufor = {}
+        gain = 0
+        for key in stock:
+            if key in list(rule.keys()):
+                gain = gain + (b/rule[key][0])
+                bufor[key] = stock[key]  -  (b/rule[key][0])
+
+        return bufor, gain
+
+
+    def parseStorageFoodToRation(self, foodname, number, rule):
+        if foodname in list(rule.keys()):
+            return number*rule[foodname][1]
+        else:
+            print("that food don't exist in rule")
 
 
 class village:
@@ -91,15 +164,98 @@ class village:
         self.store = storage()
         self.production = production()
         self.dem = demand()
-        self.pop = {"Wojownicy": 0, "chłop": 1000, "rzemieślnik": 10}
-        self.popMulti = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
+        self.rule = ruleSet()
+        self.health = 1.0 #100%
+        self.pop = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
+        self.popRation = {"Wojownicy": 4, "chłop": 1, "rzemieślnik": 1}
+        self.popMulti = {"Wojownicy": 0.5, "chłop": 0.5, "rzemieślnik": 0.5}
         self.popInWork = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
-        self.wage = {"Wojownicy": 0, "chłop": 0.1, "rzemieślnik": 1}
-        self.costMoney = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
-        self.costSum = 0
+        self.wage = {"Wojownicy": 0, "chłop": 0.1, "rzemieślnik": 1} #działa
+        self.costMoney = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0} #działa
+        self.costSum = 0 #działa
+
+    def calculateTurn(self):
+        popBufer = {}
+        for record in self.pop:
+            health = round( (((self.health*102)/100)-1),2)
+            popBufer[record] = self.pop[record]*((self.popMulti[record]+0.5)+health)
+
+        bufor = 0
+        for record in self.rule.prioRule:
+            if bufor < self.rule.prioRule[record]:
+                bufor = self.rule.prioRule[record]
+
+        prioListGen = list(range(bufor+1))
+        self.production.setPrioBulk(self.rule.prioRule)
+        bufor = {}
+        for record in prioListGen:
+            listBuff = []
+            for key in self.production.prioList:
+                if record == self.production.prioList[key]["Prio"]:
+                    listBuff.append(key)
+            bufor[record] = listBuff
+
+        stock = dict(self.store.stock)
+        pop = dict(self.pop)
+
+        for record in bufor:
+            for key in bufor[record]:
+                self.production.calculateProductionNeeds(key)
+                self.production.calculateWorker(key)
+                temp = self.production.listOfBuildings[key]
+                temporary = {}
+                for needs in temp["ProductionNeeded"]:
+                    if (stock[needs] - temp["ProductionNeeded"][needs]) >= 0:
+                        stock[needs] = (stock[needs] - temp["ProductionNeeded"][needs])
+                        temporary[needs] = temp["ProductionNeeded"][needs]
+                    else:
+                        stock[needs] = stock[needs] - (stock[needs] % temp["ProductionNeeded"][needs])
+                        temporary[needs] = (stock[needs] % temp["ProductionNeeded"][needs])
+
+                self.production.listOfBuildings[key]["ProductionSupplied"] = temporary
+
+                temporary = {}
+                for needs in temp["Needed"]:
+                    if (pop[needs] - temp["Needed"][needs]) >= 0:
+                        pop[needs] = (pop[needs] - temp["Needed"][needs])
+                        temporary[needs] = temp["Needed"][needs]
+                    else:
+                        pop[needs] = pop[needs] - (pop[needs] % temp["Needed"][needs])
+                        temporary[needs] = (pop[needs] % temp["Needed"][needs])
+                self.store.stock = stock
+
+                self.production.listOfBuildings[key]["Supplied"] = temporary
+                self.production.calculateEffectProd(key)
+                self.production.calculateEffectPop(key)
+                self.production.calculateEffect(key)
+                self.production.calculateProduction(key)
+
+        self.calculateCost()
+        self.summaryCost()
+        self.returnCost()
+        popBuffor = {}
+        for workingForce in pop:
+            popBuffor[workingForce] =  self.pop[workingForce] - pop[workingForce]
+
+        output = self.production.calculateStorage()
+        for record in output:
+            self.store.stock[record] = self.store.stock[record]+output[record]
+
+        self.popInWork = popBuffor
+        self.store.stock = self.dem.calculateRationUsage(self.store.stock, self.rule.foodRule, self.pop, self.popRation)
+        tempstock, gain = self.dem.calculateConsumption(self.store.stock, self.rule.demandRule, self.pop)
+        self.store.stock["złote_monety"] = self.store.stock["złote_monety"] + gain
+        self.store.stock["złote_monety"] = self.store.stock["złote_monety"] - self.costSum
+        if self.store.stock["złote_monety"] < 0:
+            print("Debet", self.store.stock["złote_monety"])
+        for record in tempstock:
+            self.store.stock[record] = self.store.stock[record]+output[record]
+        self.pop = popBufer
 
     def updateStorage(self):
-        self.store = self.production.store
+        bufor = self.production.calculateStorage()
+        for record in bufor:
+            self.store.modifyResource(record, bufor[record])
 
     def summaryPopInWork(self):
         summPop = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
@@ -183,10 +339,23 @@ class storage:
 class production:
     def __init__(self):
         self.base = db
-        self.store = storage()
         self.listOfBuildings = {}
-        self.productionFuture = {}
+        self.prioList = {}
         self.cost = {}
+
+    def setPrioBulk(self, listWithInfo):
+        for record in listWithInfo:
+            self.prioList[record] = {
+                    "Prio" :  listWithInfo[record],
+                    "SILOB" : self.listOfBuildings[record]
+            }
+
+    def updatePrio(self):
+        for record in self.prioList:
+            self.prioList[record] = {
+                "Prio": self.prioList[record]["Prio"],
+                "SILOB": self.listOfBuildings[record]
+            }
 
     def costSummary(self):
         bufor = {}
@@ -320,6 +489,7 @@ class production:
         buildInProd["Production"] = bufer
         self.listOfBuildings[name] = buildInProd
 
+
     def autoFill(self, cost):
         for record in self.listOfBuildings:
             self.calculateProductionNeeds(record)
@@ -343,11 +513,10 @@ class production:
             for prodKey in buildInProd["Production"]:
                 bufer[prodKey] = bufer[prodKey] + buildInProd["Production"][prodKey]
 
-        for record in bufer:
-            self.prodToStore(record, bufer[record])
+        return bufer
 
-    def prodToStore(self, resName, value):
-        self.store.modifyResource(resName, value)
+    # def prodToStore(self, resName, value):
+    #     self.store.modifyResource(resName, value)
 
 
 
@@ -362,46 +531,101 @@ db.add(file)
 file = build()
 file.createBuild("Chata Drewala",{"narzędzia" : 4}, {"drewno" : 4},{"drewno" : 1},{"chłop" : 10}, 1.0)
 db.add(file)
+file = build()
+file.createBuild("Farma Pszenicy",{"narzędzia" : 0.1}, {"pszenica" : 200},{"drewno" : 1},{"chłop" : 10}, 1.0)
+db.add(file)
 prod = production()
 
 
 vill = village(db)
 
+#dodać automatyczne dodawanie obiektu z bazy
+vill.production.addRecord("Domcio Addosa", 1)
+vill.production.addRecord("Chata Drewala", 1)
+vill.production.addRecord("Farma Pszenicy", 1)
+
+vill.store.appandResourceEmpty("drewno")
+vill.store.appandResourceEmpty("pszenica")
+vill.store.appandResourceEmpty("garbowana_skóra")
+vill.store.appandResourceEmpty("proce")
+vill.store.appandResourceEmpty("narzędzia")
+
+vill.store.appandResource("drewno",10)
+vill.store.appandResource("proce",10)
+vill.store.appandResource("pszenica",100000)
+vill.store.appandResource("garbowana_skóra",10)
+vill.store.appandResource("narzędzia",200)
+vill.store.appandResource("złote_monety",1000)
+
+vill.popModify("chłop",300)
+vill.popModify("rzemieślnik",100)
+vill.popModify("Wojownicy",0)
+
 map = {
     "drewno" : [100, 1],
-    "ubrania" : [100, 1],
-    "narzędzia" : [100, 1],
+    "pszenica" : [100, 1],
 }
-vill.changeDemand(map)
+
+vill.rule.modDem(map)
+
+map = {
+    "Domcio Addosa" : 0,
+    "Chata Drewala" : 1,
+    "Farma Pszenicy" : 0,
+       }
+
+vill.rule.modPrio(map)
+map = {
+    "pszenica" : [1, 50],
+    "mieso" : [1, 50],
+}
+
+vill.rule.modFood(map)
 
 
-#dodać automatyczne dodawanie obiektu z bazy
-vill.production.addRecord("Domcio Addosa", 40)
-vill.production.addRecord("Chata Drewala", 2)
-vill.production.editRecord("Chata Drewala", "Supplied", {"chłop" : 24})
-vill.production.editRecord("Chata Drewala", "ProductionSupplied", {"narzędzia" : 92})
 
-vill.production.editRecord("Domcio Addosa", "Supplied", {"chłop" : 800, "rzemieślnik" : 40})
-vill.production.editRecord("Domcio Addosa", "ProductionSupplied", {"drewno" : 2, "garbowana_skóra" : 2})
-vill.production.store.appandResourceEmpty("drewno")
-vill.production.store.appandResourceEmpty("garbowana_skóra")
-vill.production.store.appandResourceEmpty("proce")
-# vill.production.summaryProduction()
-# vill.production.autofill("Domcio Addosa")
-# vill.production.autofill("Chata Drewala")
-vill.production.autoFill(vill.wage)
-vill.production.calculateStorage()
-vill.production.costSummary()
-vill.calculateCost()
-vill.returnCost()
-vill.summaryPopInWork()
-vill.updateStorage()
-print(vill.costSum)
-print(vill.popInWork)
-print(vill.store.stock)
-print(vill.production.returnRecord("Chata Drewala"))
-print(vill.production.returnRecord("Domcio Addosa"))
-print(vill.production.store.stock)
+
+# vill.dem.calculatePopDemand(vill.pop, vill.popRation)
+# print(vill.dem.popDemand)
+#
+# print(vill.production.prioList)
+#
+#
+# print(vill.production.cost)
+
+for i in range(10):
+    print("tura :", i+1)
+    vill.calculateTurn()
+    print(vill.store.stock)
+    print(vill.pop)
+
+
+# vill.production.editRecord("Farma Pszenicy", "Supplied", {"chłop" : 1000})
+# vill.production.editRecord("Farma Pszenicy", "ProductionSupplied", {"narzędzia" : 20})
+#
+# vill.production.editRecord("Chata Drewala", "Supplied", {"chłop" : 24})
+# vill.production.editRecord("Chata Drewala", "ProductionSupplied", {"narzędzia" : 92})
+#
+# vill.production.editRecord("Domcio Addosa", "Supplied", {"chłop" : 800, "rzemieślnik" : 40})
+# vill.production.editRecord("Domcio Addosa", "ProductionSupplied", {"drewno" : 2, "garbowana_skóra" : 2})
+
+# # vill.production.summaryProduction()
+# # vill.production.autofill("Domcio Addosa")
+# # vill.production.autofill("Chata Drewala")
+# vill.production.autoFill(vill.wage)
+# vill.production.costSummary()
+# vill.calculateCost()
+# vill.returnCost()
+# vill.summaryPopInWork()
+# vill.updateStorage()
+
+
+
+
+#{"Wojownicy": 0, "chłop": 1000, "rzemieślnik": 10}
+
+
+
 # vill.production.addCost)
 # vill.production.fill()
 # vill.production.fillCosts(vill.wage)
