@@ -6,11 +6,4 @@ if __name__ == '__main__':
 
 
 
-map = { "coś": 0}
 
-
-map["aba"] = 0
-
-
-for record in list(map.keys()):
-    print(record)

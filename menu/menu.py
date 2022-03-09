@@ -1,5 +1,8 @@
 from tkinter import *
 import dill, json
+from typing import List
+from rich.console import Console
+import rich as r
 
 #helpers func
 def returnDictInfo(dict, int, *option):
@@ -20,7 +23,6 @@ def load():
 def show(data):
     data = json.loads(data)
     print(json.dumps(data, indent=4, sort_keys=True))
-
 
 #global staff
 class imp:
@@ -45,7 +47,7 @@ class base:
     #             self.craftsmanBuild.append(build_load)
     #         if "chłopi" and "rzemieślnik" in returnDictInfo(build_load.popNeeded, 0, "all"):
     #             self.advanceBuild.append(build_load)
-    #         self.allBuild.append(build_load)
+    #         self.allBuild.append(build_load
 
     def add(self, obj):
         if returnDictInfo(obj.popNeeded, 0) == "chłop":
@@ -73,7 +75,6 @@ class build:
         self.input = input
         self.output = output
 
-
 #local staff
 class ruleSet:
     def __init__(self):
@@ -89,7 +90,6 @@ class ruleSet:
 
     def modFood(self, mapRule):
         self.foodRule = mapRule
-
 
 class demand:
     def __init__(self):
@@ -156,7 +156,6 @@ class demand:
         else:
             print("that food don't exist in rule")
 
-
 class village:
 
     def __init__(self, base):
@@ -204,14 +203,16 @@ class village:
                 self.production.calculateWorker(key)
                 temp = self.production.listOfBuildings[key]
                 temporary = {}
-                for needs in temp["ProductionNeeded"]:
-                    if (stock[needs] - temp["ProductionNeeded"][needs]) >= 0:
-                        stock[needs] = (stock[needs] - temp["ProductionNeeded"][needs])
-                        temporary[needs] = temp["ProductionNeeded"][needs]
-                    else:
-                        stock[needs] = stock[needs] - (stock[needs] % temp["ProductionNeeded"][needs])
-                        temporary[needs] = (stock[needs] % temp["ProductionNeeded"][needs])
-
+                if list(temp["ProductionNeeded"].keys())[0] != "empty":
+                    for needs in temp["ProductionNeeded"]:
+                        if (stock[needs] - temp["ProductionNeeded"][needs]) >= 0:
+                            stock[needs] = (stock[needs] - temp["ProductionNeeded"][needs])
+                            temporary[needs] = temp["ProductionNeeded"][needs]
+                        else:
+                            stock[needs] = stock[needs] - (stock[needs] % temp["ProductionNeeded"][needs])
+                            temporary[needs] = (stock[needs] % temp["ProductionNeeded"][needs])
+                if list(temp["ProductionNeeded"].keys())[0] == "empty":
+                    temporary = dict(temp)
                 self.production.listOfBuildings[key]["ProductionSupplied"] = temporary
 
                 temporary = {}
@@ -238,6 +239,7 @@ class village:
             popBuffor[workingForce] =  self.pop[workingForce] - pop[workingForce]
 
         output = self.production.calculateStorage()
+        print(output)
         for record in output:
             self.store.stock[record] = self.store.stock[record]+output[record]
 
@@ -249,8 +251,16 @@ class village:
         if self.store.stock["złote_monety"] < 0:
             print("Debet", self.store.stock["złote_monety"])
         for record in tempstock:
-            self.store.stock[record] = self.store.stock[record]+output[record]
+            self.store.stock[record] =  tempstock[record]
+
+        for record in self.store.stock:
+            self.store.stock[record] = round(self.store.stock[record],2)
+
         self.pop = popBufer
+
+        for record in self.pop:
+            self.pop[record] = round(self.pop[record])
+
 
     def updateStorage(self):
         bufor = self.production.calculateStorage()
@@ -455,19 +465,23 @@ class production:
         build = self.base.allBuild[name]
         buildInProd = self.listOfBuildings[name]
         bufer = {}
-        for value in buildInProd["ProductionNeeded"]:
-            bufer[value] = 0
-        for value in buildInProd["ProductionSupplied"]:
-                bufer[value] = bufer[value] + buildInProd["ProductionSupplied"][value]
-        for value in buildInProd["ProductionNeeded"]:
-            bufer[value] = bufer[value] / buildInProd["ProductionNeeded"][value]
-        mini = 1
-        for value in bufer:
-            if mini > bufer[value]:
-                mini = round(bufer[value], 2)
-            if mini > 1:
-                mini = 1
-        buildInProd["EffectProd"] = mini
+        if list(buildInProd["ProductionNeeded"].keys())[0] != "empty":
+            for value in buildInProd["ProductionNeeded"]:
+                bufer[value] = 0
+            for value in buildInProd["ProductionSupplied"]:
+                    bufer[value] = bufer[value] + buildInProd["ProductionSupplied"][value]
+            for value in buildInProd["ProductionNeeded"]:
+                bufer[value] = bufer[value] / buildInProd["ProductionNeeded"][value]
+            mini = 1
+            for value in bufer:
+                if mini > bufer[value]:
+                    mini = round(bufer[value], 2)
+                if mini > 1:
+                    mini = 1
+            buildInProd["EffectProd"] = mini
+        if list(buildInProd["ProductionNeeded"].keys())[0] == "empty":
+            mini = 1
+            buildInProd["EffectProd"] = mini
         self.listOfBuildings[name] = buildInProd
 
     def calculateEffect(self, name):
@@ -521,63 +535,260 @@ class production:
 
 
 
+
+
+
+
+buildMap = [
+        # [
+        #     "Chata Procarza",
+        #     {"drewno" : 1, "garbowana_skóra" : 1},
+        #     {"proce" : 15},{"drewno" : 15},
+        #     {"chłop" : 10},
+        #     1.0
+        # ],
+        # [
+        #     "Domcio Addosa",
+        #     {"drewno" : 1, "garbowana_skóra" : 1},
+        #     {"proce" : 15},
+        #     {"drewno" : 15},
+        #     {"chłop" : 20, "rzemieślnik" : 1},
+        #     1.0
+        # ],
+        # [
+        #     "Chata Drewala",
+        #     {"narzędzia" : 4},
+        #     {"drewno" : 4},
+        #     {"drewno" : 1},
+        #     {"chłop" : 10},
+        #     1.0
+        # ],
+        # [
+        #     "Farma Pszenicy",
+        #     {"narzędzia" : 0.1},
+        #     {"pszenica" : 200},
+        #     {"drewno" : 1},
+        #     {"chłop" : 10},
+        #     1.0
+        # ],
+        # [
+        #     "Manufaktoria ubran lnianych",
+        #     {"narzędzia": 0.1, "len": 1},
+        #     {"proste_ubrania_len": 2},
+        #     {"drewno": 1},
+        #     {"chłop": 10},
+        #     1.0
+        # ],
+        [
+            "Chata Drwali",
+           {"empty" : 0},
+           {"drewno": 5},
+           {"drewno": 1},
+           {"chłop": 50},
+           1.0
+        ],
+        [
+            "Chata Popielnika",
+            {"drewno": 8},
+            {"potaż": 2},
+            {"drewno": 1},
+            {"chłop": 50},
+            1.0
+        ],
+        [
+            "Mielerz",
+            {"drewno": 6},
+            {"węgiel": 2},
+            {"drewno": 1},
+            {"chłop": 50},
+            1.0
+        ],
+        [
+            "Uprawa Warzyw",
+            {"empty": 0},
+            {"warzywa": 6},
+            {"drewno": 1},
+            {"chłop": 200},
+            1.0
+        ],
+        [
+            "Uprawa Zboża",
+            {"empty": 0},
+            {"zboże": 8},
+            {"drewno": 1},
+            {"chłop": 200},
+            1.0
+        ],
+        [
+            "Port Rybacki",
+            {"empty": 0},
+            {"łodzie": 0}, #limity dodać
+            {"drewno": 1},
+            {"chłop": 150},
+            1.0
+        ],
+        [
+            "Wytwórca Taniny",
+            {"empty": 0},
+            {"tanina": 4},
+            {"drewno": 1},
+            {"chłop": 50},
+            1.0
+        ],
+        [
+            "Garbarnia",
+            {
+                "tanina": 1,
+                "potaż": 1,
+                "tłuszcz":2,
+                "surowa_skóra":2
+             },
+            {"garbowana_skóra": 2},
+            {"drewno": 1},
+            {"chłop": 50},
+            1.0
+        ],
+        [
+            "Warsztat Narzędzi",
+            {
+                "żelazo": 1,
+                "drewno": 1,
+                "węgiel":2,
+             },
+            {"narzędzia": 4},
+            {"drewno": 1},
+            {"rzemieślnik": 10},
+            1.0
+        ],
+        [
+            "Tkacz",
+            {"len": 5},
+            {"tkaniny": 5},
+            {"drewno": 1},
+            {"chłop": 20},
+            1.0
+        ]
+
+
+
+
+
+
+
+
+
+
+]
+
 db = base()
-file = build()
-file.createBuild("Chata Procarza",{"drewno" : 1, "garbowana_skóra" : 1}, {"proce" : 15},{"drewno" : 15},{"chłop" : 10}, 1.0)
-db.add(file)
-file = build()
-file.createBuild("Domcio Addosa",{"drewno" : 1, "garbowana_skóra" : 1}, {"proce" : 15},{"drewno" : 15},{"chłop" : 20, "rzemieślnik" : 1}, 1.0)
-db.add(file)
-file = build()
-file.createBuild("Chata Drewala",{"narzędzia" : 4}, {"drewno" : 4},{"drewno" : 1},{"chłop" : 10}, 1.0)
-db.add(file)
-file = build()
-file.createBuild("Farma Pszenicy",{"narzędzia" : 0.1}, {"pszenica" : 200},{"drewno" : 1},{"chłop" : 10}, 1.0)
-db.add(file)
-prod = production()
+for record in buildMap:
+    file = build()
+    file.createBuild(record[0],record[1],record[2],record[3],record[4],record[5])
+    db.add(file)
 
 
 vill = village(db)
 
-#dodać automatyczne dodawanie obiektu z bazy
-vill.production.addRecord("Domcio Addosa", 1)
-vill.production.addRecord("Chata Drewala", 1)
-vill.production.addRecord("Farma Pszenicy", 1)
 
-vill.store.appandResourceEmpty("drewno")
-vill.store.appandResourceEmpty("pszenica")
-vill.store.appandResourceEmpty("garbowana_skóra")
-vill.store.appandResourceEmpty("proce")
-vill.store.appandResourceEmpty("narzędzia")
 
-vill.store.appandResource("drewno",10)
-vill.store.appandResource("proce",10)
-vill.store.appandResource("pszenica",100000)
-vill.store.appandResource("garbowana_skóra",10)
-vill.store.appandResource("narzędzia",200)
-vill.store.appandResource("złote_monety",1000)
 
-vill.popModify("chłop",300)
+vill.production.addRecord("Chata Drwali", 18)
+vill.production.addRecord("Chata Popielnika", 2)
+vill.production.addRecord("Mielerz", 3)
+vill.production.addRecord("Uprawa Warzyw", 1)
+vill.production.addRecord("Uprawa Zboża", 1)
+vill.production.addRecord("Port Rybacki", 1)
+vill.production.addRecord("Wytwórca Taniny", 1)
+vill.production.addRecord("Garbarnia", 2)
+vill.production.addRecord("Warsztat Narzędzi", 2)
+vill.production.addRecord("Tkacz", 4)
+
+
+listMaterial = [
+    "zboże",
+    "warzywa",
+    "drewno",
+    "garbowana_skóra",
+    "len",
+    "łodzie",
+    "narzędzia",
+    "potaż",
+    "proste_ubrania_len",
+    "surowa_skóra",
+    "smoła",
+    "tanina",
+    "tkaniny",
+    "tłuszcz",
+    "węgiel",
+    "żelazo",
+    "proce",
+    "złote_monety"
+]
+
+for record in listMaterial:
+    vill.store.appandResourceEmpty(record)
+
+
+
+listMaterial = {
+    "zboże" : 1000,
+    "warzywa" : 1000,
+    "drewno"  : 1000,
+    "garbowana_skóra"  : 1000,
+    "len"  : 1000,
+    "łodzie"  : 1000,
+    "narzędzia"  : 1000,
+    "potaż"  : 1000,
+    "proste_ubrania_len"  : 1000,
+    "surowa_skóra"  : 1000,
+    "smoła"  : 1000,
+    "tanina"  : 1000,
+    "tkaniny"  : 1000,
+    "tłuszcz"  : 1000,
+    "węgiel"  : 1000,
+    "żelazo"  : 1000,
+    "proce"  : 1000,
+    "złote_monety" : 10000,
+}
+
+for record in listMaterial:
+    vill.store.appandResource(record, listMaterial[record])
+
+
+vill.popModify("chłop",3000)
 vill.popModify("rzemieślnik",100)
 vill.popModify("Wojownicy",0)
 
 map = {
-    "drewno" : [100, 1],
-    "pszenica" : [100, 1],
+    "drewno" : [200, 1],
+    "pszenica" : [1, 1],
+    #    "len" : [100, 1],
+    "potaż" : [100, 1],
+    "proste_ubrania_len" : [100, 1],
+    "węgiel" : [100, 1]
 }
 
 vill.rule.modDem(map)
 
+
+
 map = {
-    "Domcio Addosa" : 0,
-    "Chata Drewala" : 1,
-    "Farma Pszenicy" : 0,
+    "Chata Drwali" : 0,
+    "Chata Popielnika" : 1,
+    "Mielerz" : 0,
+    "Uprawa Warzyw" : 0,
+    "Uprawa Zboża" : 0,
+    "Port Rybacki" : 0,
+    "Wytwórca Taniny" : 0,
+    "Garbarnia" : 0,
+    "Warsztat Narzędzi" : 0,
+    "Tkacz" : 0
        }
 
 vill.rule.modPrio(map)
 map = {
-    "pszenica" : [1, 50],
-    "mieso" : [1, 50],
+    "zboże" : [1, 50],
+    "warzywa" : [1, 50],
 }
 
 vill.rule.modFood(map)
@@ -593,11 +804,15 @@ vill.rule.modFood(map)
 #
 # print(vill.production.cost)
 
+con = Console()
 for i in range(10):
-    print("tura :", i+1)
+
+    con.print("tura :", i+1)
     vill.calculateTurn()
-    print(vill.store.stock)
-    print(vill.pop)
+    con.print(list(vill.production.listOfBuildings.keys()))
+    con.print(vill.store.stock)
+    con.print(vill.pop)
+    con.print(vill.popInWork)
 
 
 # vill.production.editRecord("Farma Pszenicy", "Supplied", {"chłop" : 1000})
