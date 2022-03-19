@@ -6,6 +6,16 @@ class world:
         self.imperius = {}
         self.base = s.base()
 
+    def typeStockone(self, imperio, nameVillage, stock):
+        self.imperius[imperio].economies[nameVillage].changeStorage(stock)
+
+    def typeStockAddEtycs(self, imperio, ethics):
+        self.imperius[imperio].appandResourceEmptyBulk(ethics)
+
+    def updateVillagesWithImperioStorage(self):
+        for record in self.imperius:
+            self.imperius[record].updateVillagesWithImperioStorage()
+
     def addImperium(self, name):
         self.imperius[name] = s.imp()
         self.imperius[name].updateName(name)
@@ -23,9 +33,10 @@ class world:
 
     def updateAllImperiusBase(self):
         for record in self.imperius:
-            self.imperius[record].updateDB(self.base)
+            base = self.base
+            self.imperius[record].updateDB(base)
             for key in self.imperius[record].economies:
-                self.imperius[record].economies[key].updateBase(self.base)
+                self.imperius[record].economies[key].updateBase(base)
 
     def passRule(self, ruletype, rule, imperio):
         self.imperius[imperio].passRule(ruletype, rule)
@@ -33,3 +44,18 @@ class world:
     def updateAllImperiusRule(self):
         for record in self.imperius:
             self.imperius[record].updateRule()
+
+    def parsePopSpec(self, imperio, village, caste, number):
+        self.imperius[imperio].economies[village].pop[caste] = 0
+        self.imperius[imperio].economies[village].pop[caste] = number
+
+    def parsePopbulk(self, imperio, village, map):
+        self.imperius[imperio].economies[village].pop = map
+
+
+    def addRecord(self, imperio, village, name, much):
+        self.imperius[imperio].economies[village].addRecord(name, much)
+
+
+    def calculateTurn(self, imperio, village):
+        self.imperius[imperio].economies[village].calculateTurn()

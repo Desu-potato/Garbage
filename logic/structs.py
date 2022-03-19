@@ -94,14 +94,45 @@ class ruleSet:
         self.foodRule = mapRule
 
 
+class storage:
+    def __init__(self):
+        self.stock = {}
+        self.production = {}
+        self.resourceFuture = {}
+
+    def appandResource(self, resource, much):
+        self.stock[resource] = much
+
+    def appandResourceEmpty(self, resource):
+        self.stock[resource] = 0
+
+    def modifyResource(self, resource, much):
+        self.stock[resource] = self.stock[resource] + much
+
+
 class imp:
     def __init__(self):
         self.name = ""
         self.rule = ruleSet()
         self.base = {}
         self.economies = {}
+        self.store = storage()
 
-    #Obliczanie tury tutaj może
+
+
+
+    def appandResourceEmpty(self, resource):
+        self.store.appandResourceEmpty(resource)
+
+    def appandResourceEmptyBulk(self, map):
+        for record in map:
+            self.store.appandResourceEmpty(record)
+
+    def updateVillagesWithImperioStorage(self):
+        for record in self.economies:
+            self.economies[record].store.stock = self.store.stock
+
+
     def passRule(self, ruleType, rule):
         if ruleType == "f": #food
             self.rule.modFood(rule)
@@ -113,7 +144,9 @@ class imp:
 
     def updateRule(self):
         for record in self.economies:
-            self.economies[record].rule = self.rule
+            self.economies[record].rule.demandRule  = self.rule.demandRule
+            self.economies[record].rule.prioRule = self.rule.prioRule
+            self.economies[record].rule.foodRule = self.rule.foodRule
 
     def editNameImperio(self, name):
         self.name = name
@@ -202,7 +235,8 @@ class village:
         self.name = ""
         self.base = {}
         self.store = storage()
-        self.production = production().updateDb(self.base)
+        self.production = production()
+        self.production.updateDb(self.base)
         self.dem = demand()
         self.rule = ruleSet()
         self.health = 1.0  # 100%
@@ -221,8 +255,12 @@ class village:
         self.name = name
 
 
+    def updateProductionBase(self):
+        self.production.base = self.base
+
     def updateBase(self, db):
         self.base = db
+        self.updateProductionBase()
 
 
     def setGround(self, rule):
@@ -322,6 +360,10 @@ class village:
         for record in bufor:
             self.store.modifyResource(record, bufor[record])
 
+
+    def changeStorage(self, stock):
+        self.store = stock
+
     def summaryPopInWork(self):
         summPop = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
 
@@ -385,21 +427,8 @@ class village:
     def popModify(self, caste, value):
         self.pop[caste] = value
 
-
-class storage:
-    def __init__(self):
-        self.stock = {}
-        self.production = {}
-        self.resourceFuture = {}
-
-    def appandResource(self, resource, much):
-        self.stock[resource] = much
-
-    def appandResourceEmpty(self, resource):
-        self.stock[resource] = 0
-
-    def modifyResource(self, resource, much):
-        self.stock[resource] = self.stock[resource] + much
+    def addRecord(self, name, much):
+        self.production.addRecord(name, much)
 
 
 class production:
@@ -411,8 +440,6 @@ class production:
 
     def updateDb(self, db):
         self.base = db
-
-
 
     def setPrioBulk(self, listWithInfo):
         for record in listWithInfo:
@@ -452,6 +479,7 @@ class production:
             self.listOfBuildings[building] = status
 
     def addRecord(self, name, much):
+        print(name, much, self.base)
         try:
             build = self.base.allBuild[name]
             self.listOfBuildings[name] = {
@@ -466,6 +494,7 @@ class production:
                 "Cost": 0,
                 "Raw": build,
                 "Effect": 0}
+
         except:
             return "Brak w bazie"
 
