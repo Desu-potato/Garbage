@@ -28,6 +28,10 @@ def show(data):
     data = json.loads(data)
     print(json.dumps(data, indent=4, sort_keys=True))
 
+def copyDictWithoutPointer(information):
+    return dict(information)
+
+
 
 # global staff
 
@@ -83,6 +87,7 @@ class ruleSet:
         self.demandRule = {}
         self.prioRule = {}
         self.foodRule = {}
+        self.basicRule = {}
 
     def modPrio(self, mapRule):
         self.prioRule = mapRule
@@ -92,6 +97,9 @@ class ruleSet:
 
     def modFood(self, mapRule):
         self.foodRule = mapRule
+
+    def modBasic(self, mapRule):
+        self.basicRule = mapRule
 
 
 class storage:
@@ -113,13 +121,18 @@ class storage:
 class imp:
     def __init__(self):
         self.name = ""
+        self.ture = 0
         self.rule = ruleSet()
         self.base = {}
         self.economies = {}
         self.store = storage()
 
+    def calculateGoods(self, name):
+        t = self.ture
+        self.economies[name].calculateFillings(t)
 
-
+    def updateTure(self, number):
+        self.ture = number
 
     def appandResourceEmpty(self, resource):
         self.store.appandResourceEmpty(resource)
@@ -130,7 +143,7 @@ class imp:
 
     def updateVillagesWithImperioStorage(self):
         for record in self.economies:
-            self.economies[record].store.stock = self.store.stock
+            self.economies[record].store.stock = copyDictWithoutPointer(self.store.stock)
 
 
     def passRule(self, ruleType, rule):
@@ -140,13 +153,15 @@ class imp:
             self.rule.modDem(rule)
         if ruleType == "p": #prio
             self.rule.modPrio(rule)
-
+        if ruleType == "b": #basic
+            self.rule.modBasic(rule)
 
     def updateRule(self):
         for record in self.economies:
-            self.economies[record].rule.demandRule  = self.rule.demandRule
-            self.economies[record].rule.prioRule = self.rule.prioRule
-            self.economies[record].rule.foodRule = self.rule.foodRule
+            self.economies[record].rule.demandRule  = copyDictWithoutPointer(self.rule.demandRule)
+            self.economies[record].rule.prioRule = copyDictWithoutPointer(self.rule.prioRule)
+            self.economies[record].rule.foodRule = copyDictWithoutPointer(self.rule.foodRule)
+            self.economies[record].rule.basicRule = copyDictWithoutPointer(self.rule.basicRule)
 
     def editNameImperio(self, name):
         self.name = name
@@ -162,45 +177,52 @@ class imp:
         self.name = name
 
 
-# local staff
-
-
-
 class demand:
-    def __init__(self):
-        self.pop = 0
-        self.foodNeeds = {}
-        self.popDemand = {}
-
     def calculatePopDemand(self, pop, rule):
         bufor = {}
         for record in rule:
             bufor[record] = round(rule[record][0] / pop, 2) * rule[record][1]
         self.popDemand = bufor
 
-    def calculateRationUsage(self, stock, rule, pop, ration):
-        bufor = {}
+    def calculateRationUsage(self, rule, pop, ration):
+        popBufer = {}
         for record in pop:
-            bufor[record] = pop[record] * ration[record]
+            popBufer[record] = pop[record]*ration[record]
 
-        b = 0
-        for record in bufor:
-            b = bufor[record] + b
+        agrPopRation = 0
+        for record in popBufer:
+            agrPopRation = agrPopRation+popBufer[record]
+
+
+        demUnit = agrPopRation/len(rule)
         bufor = {}
-        for key in stock:
-            if key in list(rule.keys()):
-                bufor[key] = stock[key]
+        for record in rule:
+            bufor[record] = demUnit/rule[record][0]
+        return bufor
 
-        le = len(bufor)
-        median = b / le
-        for record in bufor:
-            bufor[record] = bufor[record] - median / rule[record][1]
 
-        for key in stock:
-            if key in list(bufor.keys()):
-                stock[key] = bufor[key]
-
-        return stock
+        # bufor = {}
+        # for record in pop:
+        #     bufor[record] = pop[record] * ration[record]
+        #
+        # b = 0
+        # for record in bufor:
+        #     b = bufor[record] + b
+        # bufor = {}
+        # for key in stock:
+        #     if key in list(rule.keys()):
+        #         bufor[key] = stock[key]
+        #
+        # le = len(bufor)
+        # median = b / le
+        # for record in bufor:
+        #     bufor[record] = bufor[record] - median / rule[record][1]
+        #
+        # for key in stock:
+        #     if key in list(bufor.keys()):
+        #         stock[key] = bufor[key]
+        #
+        # return stock
 
         # bufor = 0
         # for record in pop:
@@ -233,7 +255,9 @@ class village:
 
     def __init__(self):
         self.name = ""
+        self.turnHappines = {}
         self.base = {}
+        self.goodsRate = 1
         self.store = storage()
         self.production = production()
         self.production.updateDb(self.base)
@@ -241,6 +265,7 @@ class village:
         self.rule = ruleSet()
         self.health = 1.0  # 100%
         self.mood = 1.0
+        self.grow = 0
         self.ground = {}
         self.livingarea = {}
         self.pop = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
@@ -250,6 +275,7 @@ class village:
         self.wage = {"Wojownicy": 0, "chłop": 0.1, "rzemieślnik": 1}  # działa
         self.costMoney = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}  # działa
         self.costSum = 0  # działa
+        self.log = {}
 
     def updateName(self, name):
         self.name = name
@@ -267,93 +293,227 @@ class village:
         for record in rule:
             self.ground[record] = rule[record]
 
-    def calculateTurn(self):
-        popBufer = {}
+    def calculateHealthAndMood(self, ture):
+        log = copyDictWithoutPointer(self.log)
+        avgBasic = log[ture]["basicNeeds"]["avg"]
+        avgDem = log[ture]["popDemand"]["avg"]
+        avgFood = log[ture]["foodDem"]["avg"]
+        health = round((((avgBasic + avgFood)/2)-0.5), 2)
+        mood = round((((avgBasic + avgDem + avgFood)/3)-0.5), 2)
+        self.grow = (mood+health)/2
+        self.health = health
+        self.mood = mood
+
+    def calculateFillings(self, ture):
+        agragetePop = 0
         for record in self.pop:
-            health = round((((self.health * 102) / 100) - 1), 2)
-            popBufer[record] = self.pop[record] * ((self.popMulti[record] + 0.5) + health)
+            agragetePop = agragetePop+self.pop[record]
 
-        bufor = 0
-        for record in self.rule.prioRule:
-            if bufor < self.rule.prioRule[record]:
-                bufor = self.rule.prioRule[record]
+        mapOfDemand = {}
+        for record in self.rule.demandRule:
+            mapOfDemand[record] = agragetePop/(self.rule.demandRule[record][0]*self.goodsRate)
 
-        prioListGen = list(range(bufor + 1))
-        self.production.setPrioBulk(self.rule.prioRule)
+        bufor = {}
+        for record in mapOfDemand:
+            if record in list(self.store.stock.keys()):
+                store = self.store.stock[record]
+                if (store-mapOfDemand[record]) >= 0 :
+                    bufor[record] = store - mapOfDemand[record]
+                if (store - mapOfDemand[record]) < 0:
+                    p = mapOfDemand[record] + (store - mapOfDemand[record])
+                    bufor[record] = p
+
+        toStock = bufor
+        rule = copyDictWithoutPointer(self.rule.demandRule)
+        bufor = {}
+        for record in mapOfDemand:
+            if record in list(self.store.stock.keys()):
+                store = self.store.stock[record]
+                if (store-mapOfDemand[record]) >= 0:
+                    bufor[record] = 1*rule[record][1]
+                if (store - mapOfDemand[record]) < 0:
+                    p = mapOfDemand[record] + (store - mapOfDemand[record])
+                    bufor[record] = round( (p / mapOfDemand[record])*rule[record][1], 2)
+                    if bufor[record] < 0:
+                        bufor[record] = 0
+
+        temp = 0
+        for record in bufor:
+            temp = temp+bufor[record]
+
+        temp = temp/len(bufor)
+        bufor["avg"] = round(temp,2)
+        self.log[ture] = {"popDemand" : bufor}
+        stock = copyDictWithoutPointer(self.store.stock)
+        for record in toStock:
+            if not stock[record]-toStock[record] <= 0:
+                stock[record] = round(stock[record]-toStock[record],2)
+            else:
+                stock[record] = 0
+        self.store.stock = stock
+        pop = copyDictWithoutPointer(self.pop)
+        ration = copyDictWithoutPointer(self.popRation)
+        rule = copyDictWithoutPointer(self.rule.foodRule)
+        rations = self.dem.calculateRationUsage(rule, pop, ration)
+        bufor = {}
+        for record in rations:
+            if record in list(self.store.stock.keys()):
+                store = self.store.stock[record]
+                if (store-rations[record]) >= 0:
+                    bufor[record] = 1*rule[record][1]
+                if (store - rations[record]) < 0:
+                    p = rations[record] + (store - rations[record])
+                    bufor[record] = round( (p / rations[record])*rule[record][1], 2)
+                    if bufor[record] < 0:
+                        bufor[record] = 0
+            if not record in list(self.store.stock.keys()):
+                bufor[record] = 0
+        temp = 0
+        for record in bufor:
+            temp = temp+bufor[record]
+
+        for record in rations:
+            if not stock[record]-rations[record] <= 0:
+                stock[record] = round(stock[record]-rations[record],2)
+            else:
+                stock[record] = 0
+
+        temp = temp / len(bufor)
+        bufor["avg"] = round(temp, 2)
+        self.log[ture]["foodDem"] = bufor
+        rule = copyDictWithoutPointer(self.rule.basicRule)
+        mapOfDemand = {}
+        for record in rule:
+            mapOfDemand[record] = agragetePop/rule[record][0]
+
+        bufor = {}
+        stock = copyDictWithoutPointer(self.store.stock)
+        for record in mapOfDemand:
+            if record in list(self.store.stock.keys()):
+                store = self.store.stock[record]
+                if (store - mapOfDemand[record]) >= 0:
+                    bufor[record] = 1 * rule[record][1]
+                    stock[record] = stock[record] - mapOfDemand[record]
+                if (store - mapOfDemand[record]) < 0:
+                    p = mapOfDemand[record] + (store - mapOfDemand[record])
+                    stock[record] = stock[record] - mapOfDemand[record]
+                    bufor[record] = round((p / mapOfDemand[record]) * rule[record][1], 2)
+                    if bufor[record] < 0:
+                        bufor[record] = 0
+                        stock[record] = 0
+            if not record in list(self.store.stock.keys()):
+                bufor[record] = 0
+
+        for record in stock:
+            if stock[record] < 0:
+                self.store.stock[record] = 0
+            else:
+                self.store.stock[record] = stock[record]
+
+        temp = 0
+        for record in bufor:
+            temp = temp + bufor[record]
+
+
+
+        temp = temp / len(bufor)
+        bufor["avg"] = round(temp, 2)
+        self.log[ture]["basicNeeds"] = bufor
+
+
+    def calculatePopGrow(self):
+        popBufer = {}
+        pop = copyDictWithoutPointer(self.pop)
+        mood = self.mood
+        health = self.health
+        popMulti = copyDictWithoutPointer(self.popMulti)
+        for record in pop:
+            popBufer[record] = round(pop[record]*(((mood + health)/2) + popMulti[record]))
+        self.pop = popBufer
+
+    def calculateTurn(self, ture):
+        buforMAX = 0
+        buforMIN = 100000
+        rule = copyDictWithoutPointer(self.rule.prioRule)
+        self.production.setPrioBulk(rule)
+        for record in rule:
+
+            if buforMIN > rule[record]:
+                buforMIN = rule[record]
+
+            if buforMAX < rule[record]:
+                buforMAX = rule[record]
+
+        prioListGen = list(range(buforMIN,buforMAX + 1))
+
         bufor = {}
         for record in prioListGen:
+
             listBuff = []
             for key in self.production.prioList:
                 if record == self.production.prioList[key]["Prio"]:
                     listBuff.append(key)
-            bufor[record] = listBuff
+            if listBuff:
+                bufor[record] = listBuff
 
-        stock = dict(self.store.stock)
-        pop = dict(self.pop)
 
+        popBuffer = {}
+        for record in self.pop:
+            popBuffer[record] = 0
         for record in bufor:
             for key in bufor[record]:
                 self.production.calculateProductionNeeds(key)
                 self.production.calculateWorker(key)
-                temp = self.production.listOfBuildings[key]
+                buildme = copyDictWithoutPointer(self.production.listOfBuildings[key])
+                stock = copyDictWithoutPointer(self.store.stock)
+                pop = copyDictWithoutPointer(self.pop)
                 temporary = {}
-                if list(temp["ProductionNeeded"].keys())[0] != "empty":
-                    for needs in temp["ProductionNeeded"]:
-                        if (stock[needs] - temp["ProductionNeeded"][needs]) >= 0:
-                            stock[needs] = (stock[needs] - temp["ProductionNeeded"][needs])
-                            temporary[needs] = temp["ProductionNeeded"][needs]
-                        else:
-                            stock[needs] = stock[needs] - (stock[needs] % temp["ProductionNeeded"][needs])
-                            temporary[needs] = (stock[needs] % temp["ProductionNeeded"][needs])
-                if list(temp["ProductionNeeded"].keys())[0] == "empty":
-                    temporary = dict(temp)
-                self.production.listOfBuildings[key]["ProductionSupplied"] = temporary
+                if buildme["ProductionNeeded"]:
+                    for needs in buildme["ProductionNeeded"]:
+                                    buf = {}
+                                    if (stock[needs] - buildme["ProductionNeeded"][needs]) >= 0:
+                                        stock[needs] = (stock[needs] - buildme["ProductionNeeded"][needs])
+                                        temporary[needs] = buildme["ProductionNeeded"][needs]
 
+
+                                    if (stock[needs] - buildme["ProductionNeeded"][needs]) < 0:
+                                        buf[needs] = stock[needs] - (stock[needs] % buildme["ProductionNeeded"][needs])
+                                        temporary[needs] = (stock[needs] % buildme["ProductionNeeded"][needs])
+                                        stock[needs] = buf[needs]
+
+                buildme["ProductionSupplied"] = temporary
                 temporary = {}
-                for needs in temp["Needed"]:
-                    if (pop[needs] - temp["Needed"][needs]) >= 0:
-                        pop[needs] = (pop[needs] - temp["Needed"][needs])
-                        temporary[needs] = temp["Needed"][needs]
-                    else:
-                        pop[needs] = pop[needs] - (pop[needs] % temp["Needed"][needs])
-                        temporary[needs] = (pop[needs] % temp["Needed"][needs])
-                self.store.stock = stock
+                for needs in buildme["Needed"]:
+                    if (pop[needs] - buildme["Needed"][needs]) >= 0:
+                        pop[needs] = (pop[needs] - buildme["Needed"][needs])
+                        temporary[needs] = buildme["Needed"][needs]
 
-                self.production.listOfBuildings[key]["Supplied"] = temporary
+                    if (pop[needs] - buildme["Needed"][needs]) < 0:
+                        pop[needs] = pop[needs] - (pop[needs] % buildme["Needed"][needs])
+                        temporary[needs] = (pop[needs] % buildme["Needed"][needs])
+                buildme["Supplied"] = temporary
+                self.production.listOfBuildings[key] = buildme
+                for record in temporary:
+                    popBuffer[record] = popBuffer[record]+temporary[record]
                 self.production.calculateEffectProd(key)
                 self.production.calculateEffectPop(key)
                 self.production.calculateEffect(key)
                 self.production.calculateProduction(key)
+                self.store.stock = stock
 
+        output = self.production.calculateStorage()
+        for record in output:
+            self.store.stock[record] = self.store.stock[record] + output[record]
+        self.popInWork = popBuffer
         self.calculateCost()
         self.summaryCost()
         self.returnCost()
-        popBuffor = {}
-        for workingForce in pop:
-            popBuffor[workingForce] = self.pop[workingForce] - pop[workingForce]
+        self.calculateFillings(ture)
+        self.calculateHealthAndMood(ture)
 
-        output = self.production.calculateStorage()
-        print(output)
-        for record in output:
-            self.store.stock[record] = self.store.stock[record] + output[record]
+        self.calculatePopGrow()
 
-        self.popInWork = popBuffor
-        self.store.stock = self.dem.calculateRationUsage(self.store.stock, self.rule.foodRule, self.pop, self.popRation)
-        tempstock, gain = self.dem.calculateConsumption(self.store.stock, self.rule.demandRule, self.pop)
-        self.store.stock["złote_monety"] = self.store.stock["złote_monety"] + gain
-        self.store.stock["złote_monety"] = self.store.stock["złote_monety"] - self.costSum
-        if self.store.stock["złote_monety"] < 0:
-            print("Debet", self.store.stock["złote_monety"])
-        for record in tempstock:
-            self.store.stock[record] = tempstock[record]
 
-        for record in self.store.stock:
-            self.store.stock[record] = round(self.store.stock[record], 2)
-
-        self.pop = popBufer
-
-        for record in self.pop:
-            self.pop[record] = round(self.pop[record])
 
     def updateStorage(self):
         bufor = self.production.calculateStorage()
@@ -403,10 +563,14 @@ class village:
         self.updateCostMoney()
 
     def returnCost(self):
+        self.costSum = 0
         for cast in self.costMoney:
             self.costSum = self.costSum + self.costMoney[cast]
 
     def summaryCost(self):
+        self.costMoney = {}
+        for record in self.pop:
+            self.costMoney[record] = 0
         for bulding in self.production.listOfBuildings:
             dict = self.production.listOfBuildings[bulding]["Cost"]
             for recordKey in dict:
@@ -479,8 +643,6 @@ class production:
             self.listOfBuildings[building] = status
 
     def addRecord(self, name, much):
-        print(name, much, self.base)
-        try:
             build = self.base.allBuild[name]
             self.listOfBuildings[name] = {
                 "Much": much,
@@ -495,8 +657,6 @@ class production:
                 "Raw": build,
                 "Effect": 0}
 
-        except:
-            return "Brak w bazie"
 
     def editRecord(self, name, param, value):
         try:
@@ -555,23 +715,26 @@ class production:
         build = self.base.allBuild[name]
         buildInProd = self.listOfBuildings[name]
         bufer = {}
-        if list(buildInProd["ProductionNeeded"].keys())[0] != "empty":
-            for value in buildInProd["ProductionNeeded"]:
-                bufer[value] = 0
-            for value in buildInProd["ProductionSupplied"]:
-                bufer[value] = bufer[value] + buildInProd["ProductionSupplied"][value]
-            for value in buildInProd["ProductionNeeded"]:
-                bufer[value] = bufer[value] / buildInProd["ProductionNeeded"][value]
-            mini = 1
-            for value in bufer:
-                if mini > bufer[value]:
-                    mini = round(bufer[value], 2)
-                if mini > 1:
-                    mini = 1
-            buildInProd["EffectProd"] = mini
-        if list(buildInProd["ProductionNeeded"].keys())[0] == "empty":
-            mini = 1
-            buildInProd["EffectProd"] = mini
+        if not "empty" in list(buildInProd["ProductionNeeded"].keys()):
+            if buildInProd["ProductionNeeded"]:
+                for value in buildInProd["ProductionNeeded"]:
+                    bufer[value] = 0
+                for value in buildInProd["ProductionSupplied"]:
+                    bufer[value] = bufer[value] + buildInProd["ProductionSupplied"][value]
+                for value in buildInProd["ProductionNeeded"]:
+                    bufer[value] = bufer[value] / buildInProd["ProductionNeeded"][value]
+                mini = 1
+                for value in bufer:
+                    if mini > bufer[value]:
+                        mini = round(bufer[value], 2)
+                    if mini > 1:
+                        mini = 1
+                buildInProd["EffectProd"] = mini
+            if not buildInProd["ProductionNeeded"]:
+                mini = 1
+                buildInProd["EffectProd"] = mini
+        else:
+            buildInProd["EffectProd"] = 1
         self.listOfBuildings[name] = buildInProd
 
     def calculateEffect(self, name):
@@ -622,22 +785,6 @@ class production:
     # def prodToStore(self, resName, value):
     #     self.store.modifyResource(resName, value)
 
-#
-# #
-# # zawarudo = world()
-# #
-# # zawarudo.addImperium("Test1")
-# # zawarudo.addVillage("Test1","Beta")
-# # zawarudo.addTobase([
-# #              "Chata Procarza",
-# #              {"drewno" : 1, "garbowana_skóra" : 1},
-# #              {"proce" : 15},{"drewno" : 15},
-# #              {"chłop" : 10},
-# #              1.0
-# #          ])
-#
-#
-#
 # buildMap = [
 #         # [
 #         #     "Chata Procarza",

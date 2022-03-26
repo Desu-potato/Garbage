@@ -581,7 +581,7 @@ buildMap = [
         # ],
         [
             "Chata Drwali",
-           {"empty" : 0},
+            {},
            {"drewno": 5},
            {"drewno": 1},
            {"chłop": 50},

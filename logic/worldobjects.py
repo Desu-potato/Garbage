@@ -3,6 +3,7 @@ import logic.structs as s
 
 class world:
     def __init__(self):
+        self.turn = 0
         self.imperius = {}
         self.base = s.base()
 
@@ -58,4 +59,26 @@ class world:
 
 
     def calculateTurn(self, imperio, village):
-        self.imperius[imperio].economies[village].calculateTurn()
+        self.imperius[imperio].economies[village].calculateTurn(self.turn)
+
+    def globalTurn(self):
+        t = self.turn
+        t = t+1
+        self.turn = t
+        for record in self.imperius:
+            self.imperius[record].updateTure(t)
+            for key in self.imperius[record].economies:
+                self.imperius[record].economies[key].calculateTurn(self.turn)
+
+
+    def calculateFillings(self, record, key):
+        self.imperius[record].calculateGoods(key)
+
+
+
+    def appandResource(self, imperio, village, name, much):
+        self.imperius[imperio].economies[village].store.appandResource(name, much)
+
+    def appandResourceBulk(self, imperio, village, map):
+        for record in map:
+            self.imperius[imperio].economies[village].store.appandResource(record, map[record])
