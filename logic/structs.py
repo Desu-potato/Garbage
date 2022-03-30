@@ -268,6 +268,7 @@ class village:
         self.grow = 0
         self.ground = {}
         self.livingarea = {}
+        self.gain = 0
         self.pop = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}
         self.popRation = {"Wojownicy": 4, "chłop": 1, "rzemieślnik": 1}
         self.popMulti = {"Wojownicy": 0.5, "chłop": 0.5, "rzemieślnik": 0.5}
@@ -305,6 +306,9 @@ class village:
         self.mood = mood
 
     def calculateFillings(self, ture):
+
+        moneyFromDem = 0
+
         agragetePop = 0
         for record in self.pop:
             agragetePop = agragetePop+self.pop[record]
@@ -319,9 +323,11 @@ class village:
                 store = self.store.stock[record]
                 if (store-mapOfDemand[record]) >= 0 :
                     bufor[record] = store - mapOfDemand[record]
+
                 if (store - mapOfDemand[record]) < 0:
                     p = mapOfDemand[record] + (store - mapOfDemand[record])
                     bufor[record] = p
+        # moneyFromDem = moneyFromDem + (p * self.rule.demandRule[record][2])
 
         toStock = bufor
         rule = copyDictWithoutPointer(self.rule.demandRule)
@@ -331,12 +337,14 @@ class village:
                 store = self.store.stock[record]
                 if (store-mapOfDemand[record]) >= 0:
                     bufor[record] = 1*rule[record][1]
+                    moneyFromDem = moneyFromDem + (1 * rule[record][2])
                 if (store - mapOfDemand[record]) < 0:
                     p = mapOfDemand[record] + (store - mapOfDemand[record])
                     bufor[record] = round( (p / mapOfDemand[record])*rule[record][1], 2)
+                    moneyFromDem = moneyFromDem + (round(p / mapOfDemand[record],2) * rule[record][2])
                     if bufor[record] < 0:
+                        moneyFromDem = moneyFromDem + 0
                         bufor[record] = 0
-
         temp = 0
         for record in bufor:
             temp = temp+bufor[record]
@@ -361,13 +369,18 @@ class village:
                 store = self.store.stock[record]
                 if (store-rations[record]) >= 0:
                     bufor[record] = 1*rule[record][1]
+                    moneyFromDem = moneyFromDem + (1 * rule[record][2])
                 if (store - rations[record]) < 0:
                     p = rations[record] + (store - rations[record])
                     bufor[record] = round( (p / rations[record])*rule[record][1], 2)
+                    test = (round(p / rations[record], 2) * rule[record][2])
+                    moneyFromDem = moneyFromDem + test
                     if bufor[record] < 0:
+                        moneyFromDem = moneyFromDem + 0
                         bufor[record] = 0
             if not record in list(self.store.stock.keys()):
                 bufor[record] = 0
+                moneyFromDem = moneyFromDem + 0
         temp = 0
         for record in bufor:
             temp = temp+bufor[record]
@@ -394,21 +407,39 @@ class village:
                 if (store - mapOfDemand[record]) >= 0:
                     bufor[record] = 1 * rule[record][1]
                     stock[record] = stock[record] - mapOfDemand[record]
+                    moneyFromDem = moneyFromDem + (1 * rule[record][2])
                 if (store - mapOfDemand[record]) < 0:
                     p = mapOfDemand[record] + (store - mapOfDemand[record])
                     stock[record] = stock[record] - mapOfDemand[record]
                     bufor[record] = round((p / mapOfDemand[record]) * rule[record][1], 2)
+                    moneyFromDem = moneyFromDem + (round((p / mapOfDemand[record])) * rule[record][2])
                     if bufor[record] < 0:
                         bufor[record] = 0
                         stock[record] = 0
             if not record in list(self.store.stock.keys()):
                 bufor[record] = 0
 
+        self.gain = moneyFromDem
+        if not agragetePop <= 0:
+            stock["złote_monety"] = stock["złote_monety"] + round(moneyFromDem,2 )
+            sum = self.costSum
+            if (stock["złote_monety"] - sum) >= 0:
+                bufor["złote_monety"] = 1
+                stock["złote_monety"] = stock["złote_monety"] - sum
+            else:
+                p = sum + (stock["złote_monety"]-sum)
+                bufor["złote_monety"] = round(p/sum,2)
+                stock["złote_monety"] = p
+        else:
+            stock["złote_monety"] = 0
+            bufor["złote_monety"] = 0
+
         for record in stock:
             if stock[record] < 0:
                 self.store.stock[record] = 0
             else:
                 self.store.stock[record] = stock[record]
+
 
         temp = 0
         for record in bufor:

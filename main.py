@@ -138,9 +138,9 @@ def initial():
     zawarudo.updateAllImperiusBase()
 
     map = {
-        "drewno": [300, 3],
-        "potaż": [300, 2],
-        "węgiel": [300, 1]
+        "drewno": [300, 3, 1],
+        "potaż": [300, 2, 1],
+        "węgiel": [300, 1, 1]
     }
     zawarudo.passRule("d", map, "Tymuridzi")
     map = {
@@ -149,31 +149,32 @@ def initial():
         "Uprawa Warzyw": 1,
         "Uprawa Zboża": 1,
         "hodowla bydła": 1,
-            "Rzeźnik": 1,
+        "Rzeźnik": 1,
         "Przetwarzanie Zboża": 1,
     }
 
     zawarudo.passRule("p", map, "Tymuridzi")
     map = {
-        "zboże": [10, 2],
-        "warzywa": [10, 1],
-        "mięso": [10, 3],
-        "owoce": [10, 1],
-        "nabiał": [10, 1],
+        "zboże": [10, 2, 1],
+        "warzywa": [10, 1, 1],
+        "mięso": [10, 3, 1],
+        "owoce": [10, 1, 1],
+        "nabiał": [10, 1, 1],
     }
     zawarudo.passRule("f", map, "Tymuridzi")
     map = {
-        "opał": [100, 2],
-        "proste_ubrania": [100, 1],
-        "domy": [100, 4],
-        "narzędzia" : [100, 1],
-        "smoła": [100, 1],
-        "alkohol": [100, 1],
+        "opał": [100, 2, 1],
+        "proste_ubrania": [100, 1, 1],
+        "domy": [100, 4, 100],
+        "narzędzia" : [100, 1, 1],
+        "smoła": [100, 1, 1],
+        "alkohol": [100, 1, 1],
     }
     zawarudo.passRule("b", map, "Tymuridzi")
     zawarudo.updateAllImperiusRule()
 
     listMaterial = [
+        "złote_monety",
         "empty",
         "pasza",
         "bydło",
@@ -280,6 +281,7 @@ def initial():
                 print("Money: ", zawarudo.imperius[record].economies[key].costMoney)
                 print("Money Sum: ", zawarudo.imperius[record].economies[key].costSum)
                 print("Pop:",zawarudo.imperius[record].economies[key].pop)
+                print("Rynek wewnętrzny:", zawarudo.imperius[record].economies[key].gain)
                 print("#---------------------#")
 
         zawarudo.globalTurn()
