@@ -15,14 +15,6 @@ def returnDictInfo(dict, int, *option):
     return buf[int]
 
 
-def save(obj):
-    dill.dump(obj, open("save.pickle", "wb+"))
-
-
-def load():
-    file = dill.load(open("save.pickle", "rb"))
-    return file
-
 
 def show(data):
     data = json.loads(data)
@@ -89,18 +81,26 @@ class ruleSet:
         self.foodRule = {}
         self.basicRule = {}
 
-    def modPrio(self, mapRule):
-        self.prioRule = mapRule
 
-    def modDem(self, mapRule):
-        self.demandRule = mapRule
+    def changeRule(self, ruleType, rule):
+        if ruleType == "f":  # food
+            self.foodRule = rule
+        if ruleType == "d":  # demand
+            self.demandRule = rule
+        if ruleType == "p":  # prio
+            self.prioRule = rule
+        if ruleType == "b":  # basic
+            self.basicRule = rule
 
-    def modFood(self, mapRule):
-        self.foodRule = mapRule
-
-    def modBasic(self, mapRule):
-        self.basicRule = mapRule
-
+    def addRule(self, ruleType, ruleName, ruleBody):
+        if ruleType == "f":  # food
+            self.foodRule[ruleName] = ruleBody
+        if ruleType == "d":  # demand
+            self.demandRule[ruleName] = ruleBody
+        if ruleType == "p":  # prio
+            self.prioRule[ruleName] = ruleBody
+        if ruleType == "b":  # basic
+            self.basicRule[ruleName] = ruleBody
 
 class storage:
     def __init__(self):
@@ -145,16 +145,11 @@ class imp:
         for record in self.economies:
             self.economies[record].store.stock = copyDictWithoutPointer(self.store.stock)
 
-
     def passRule(self, ruleType, rule):
-        if ruleType == "f": #food
-            self.rule.modFood(rule)
-        if ruleType == "d": #demand
-            self.rule.modDem(rule)
-        if ruleType == "p": #prio
-            self.rule.modPrio(rule)
-        if ruleType == "b": #basic
-            self.rule.modBasic(rule)
+        self.rule.changeRule(ruleType, rule)
+
+    def addRule(self, ruleType, ruleName, ruleBody):
+        self.rule.addRule(ruleType, ruleName, ruleBody)
 
     def updateRule(self):
         for record in self.economies:
@@ -277,6 +272,30 @@ class village:
         self.costMoney = {"Wojownicy": 0, "chłop": 0, "rzemieślnik": 0}  # działa
         self.costSum = 0  # działa
         self.log = {}
+
+    def returnBiznes(self, option):
+        bufer = {}
+        base = self.production.listOfBuildings
+        if option != "":
+            if option == "p":
+                for record in base:
+                    if base[record]["Private"]:
+                        bufer[record] = base[record]
+                return bufer
+            if option == "n":
+                for record in base:
+                    if not base[record]["Private"]:
+                        bufer[record] = base[record]
+                return bufer
+
+        for record in base:
+            bufer[record] = base[record]
+        return bufer
+
+
+    def updatePrivateBiznes(self, name, array):
+        self.production.updatePrivateBiznes(name, array)
+
 
     def updateName(self, name):
         self.name = name
@@ -526,10 +545,12 @@ class village:
                 self.production.listOfBuildings[key] = buildme
                 for record in temporary:
                     popBuffer[record] = popBuffer[record]+temporary[record]
+
                 self.production.calculateEffectProd(key)
                 self.production.calculateEffectPop(key)
                 self.production.calculateEffect(key)
                 self.production.calculateProduction(key)
+
                 self.store.stock = stock
 
         output = self.production.calculateStorage()
@@ -604,8 +625,9 @@ class village:
             self.costMoney[record] = 0
         for bulding in self.production.listOfBuildings:
             dict = self.production.listOfBuildings[bulding]["Cost"]
-            for recordKey in dict:
-                self.costMoney[recordKey] = self.costMoney[recordKey] + dict[recordKey]
+            if not self.production.listOfBuildings[bulding]["Private"]:
+                for recordKey in dict:
+                    self.costMoney[recordKey] = self.costMoney[recordKey] + dict[recordKey]
 
     def suspectedFuture(self):
         self.popInFuture = {"Wojownicy": 0,
@@ -632,6 +654,9 @@ class production:
         self.listOfBuildings = {}
         self.prioList = {}
         self.cost = {}
+
+    def updatePrivateBiznes(self, name, bool):
+        self.editRecord(name,"Private", bool)
 
     def updateDb(self, db):
         self.base = db
@@ -686,7 +711,9 @@ class production:
                 "Production": 0,
                 "Cost": 0,
                 "Raw": build,
-                "Effect": 0}
+                "Effect": 0,
+                "Private" : False,
+            }
 
 
     def editRecord(self, name, param, value):
@@ -803,6 +830,7 @@ class production:
             buildInProd = self.listOfBuildings[record]
             for prodKey in buildInProd["Production"]:
                 bufer[prodKey] = 0
+
 
         for record in self.listOfBuildings:
             buildInProd = self.listOfBuildings[record]

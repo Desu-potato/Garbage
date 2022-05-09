@@ -7,22 +7,59 @@ class world:
         self.imperius = {}
         self.base = s.base()
 
+    def returnBiznes(self, imperio, name, option):
+        return self.imperius[imperio].economies[name].returnBiznes(option)
+
+
+    def updateBiznesLogic(self, imperio, name, build, bool):
+            self.imperius[imperio].economies[name].updatePrivateBiznes(build, bool)
+
     def typeStockone(self, imperio, nameVillage, stock):
         self.imperius[imperio].economies[nameVillage].changeStorage(stock)
 
+    def typeStockAddEtycsOne(self, imperio, ethics):
+        self.imperius[imperio].appandResourceEmpty(ethics)
+        self.imperius[imperio].updateVillagesWithImperioStorage()
+
     def typeStockAddEtycs(self, imperio, ethics):
         self.imperius[imperio].appandResourceEmptyBulk(ethics)
+
+    def addResourceToVillage(self, imperio, village, resource, much):
+        self.imperius[imperio].economies[village].store.appandResource(resource, much)
+
 
     def updateVillagesWithImperioStorage(self):
         for record in self.imperius:
             self.imperius[record].updateVillagesWithImperioStorage()
 
+    def showMyVillage(self, imperio, name):
+        base = self.imperius[imperio].economies[name]
+        print("Village Name:", base.name)
+        print("Growrate:", base.grow + 0.5)
+        print("Happines:", base.mood + 0.5)
+        print("Health:", base.health + 0.5)
+        print("Store: ", base.store.stock)
+        print("Money: ", base.costMoney)
+        print("Money Sum: ", base.costSum)
+        print("Pop:", base.pop)
+        print("Rynek wewnętrzny:", base.gain)
+        print("#---------------------#")
+        print("log:", base.log)
+        print("test: ", base.production.listOfBuildings)
+
+
+
+
+
+
+
+
     def addImperium(self, name):
         self.imperius[name] = s.imp()
         self.imperius[name].updateName(name)
 
-    def editImperiumName(self, name):
-        self.imperius[name].editNameImperio(name)
+    def editImperiumName(self, name, newname):
+        self.imperius[name].editNameImperio(newname)
 
     def addVillage(self, imperio, nameVillage):
         self.imperius[imperio].addVillage(nameVillage)
@@ -38,6 +75,18 @@ class world:
             self.imperius[record].updateDB(base)
             for key in self.imperius[record].economies:
                 self.imperius[record].economies[key].updateBase(base)
+
+    def showRule(self, imperio):
+        print(
+            self.imperius[imperio].rule.demandRule,
+            self.imperius[imperio].rule.prioRule,
+            self.imperius[imperio].rule.foodRule,
+            self.imperius[imperio].rule.basicRule
+        )
+
+    def addRule(self, imperio, ruleType, ruleName, ruleBody):
+        print(imperio, ruleType, ruleName, ruleBody)
+        self.imperius[imperio].addRule(ruleType, ruleName, ruleBody)
 
     def passRule(self, ruletype, rule, imperio):
         self.imperius[imperio].passRule(ruletype, rule)
@@ -73,8 +122,6 @@ class world:
 
     def calculateFillings(self, record, key):
         self.imperius[record].calculateGoods(key)
-
-
 
     def appandResource(self, imperio, village, name, much):
         self.imperius[imperio].economies[village].store.appandResource(name, much)
