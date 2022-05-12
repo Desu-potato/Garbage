@@ -264,14 +264,7 @@ class interface:
                 {"chłop": 200},
                 1.0
             ],
-            [
-                "Przetwarzanie Zboża",
-                {"zboże": 1},
-                {"pasza": 2},
-                {"drewno": 1},
-                {"chłop": 10},
-                1.0
-            ],
+
             [
                 "hodowla bydła",
                 {"pasza": 1},
