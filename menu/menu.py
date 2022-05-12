@@ -100,6 +100,56 @@ class interface:
             if inp == 10:
                 break
 
+    def buildRule(self):
+        map = {}
+        option = ""
+        while True:
+            print(
+                "option: ", option, "\n",
+                "map: ", map, "\n",
+                "Tabela opcji: \n",
+                "Ustaw opcje zasady: 1 (p,f,d,b) \n",
+                "Nadaj Etykietke: 2 \n",
+                "Usuń Etykietke: 3 \n",
+                "Wypełnij liczbą: 4 \n",
+                "Wypełnij Tablice: 6 \n",
+                "Dodaj Zasadę do imperium (PEłna): 7 \n",
+                "Wyjście: 8 \n",
+
+            )
+            inp = int(input())
+            if inp == 1:
+                choose = input(">>")
+                option = choose
+            if inp == 2:
+                choose = input(">>")
+                map[choose] = 0
+            if inp == 3:
+                choose = input(">>")
+                map.pop(choose)
+            if inp == 4:
+                choose = input(">>")
+                info = input("Info>>")
+                map[choose] = int(info)
+            if inp == 6:
+                choose = input(">>")
+                opt = input("Options>>")
+                arr = []
+                for record in range(int(opt)):
+                    ke = input(">>")
+                    arr.append(int(ke))
+                map[choose] = arr
+
+            if inp == 7:
+                print(list(self.world.imperius.keys()))
+                imperio = input(">>")
+                for record in map:
+                    self.addRule(imperio, option, record, map[record])
+
+            if inp == 8:
+                break
+
+
     def updateBiznesRule(self, imperio, name, build, bool):
         self.world.updateBiznesLogic(imperio, name, build, bool)
 

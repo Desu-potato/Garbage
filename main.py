@@ -30,7 +30,7 @@ def initialInterface():
             "Globalna tura: 17\n",
             "Uzupełnił Etykietki Magazynu Protokól: 18\n",
             "Pełne tworzenie: 19\n",
-            "Creator: 22\n",
+            "Creator Budynków: 22\n",
             "Wyjście: 9\n",
         )
         # try:
@@ -64,7 +64,7 @@ def initialInterface():
                 inp = input("Imperio >>")
                 Name = input("Name >>")
                 interface.showMyShit(inp, Name)
-                # print(interface.world.imperius[inp].economies[Name].production.listOfBuildings)
+
 
             if inp == 8:
                 interface.fillBaseProtocol()
@@ -95,21 +95,7 @@ def initialInterface():
                 interface.addEtic(b, m)
 
             if inp == 15:
-                inp = input("Imperio>>")
-                type = input("Type>>")
-                etic = input("Etic>>")
-                b1 = input("Optionnr1>>")
-                b2 = input("Optionnr2>>")
-                b3 = input("Optionnr3>>")
-                bufer = []
-                if b1 != "":
-                    bufer.append(int(b1))
-                if b2 != "":
-                    bufer.append(int(b2))
-                if b3 != "":
-                    bufer.append(int(b3))
-                interface.addRule(inp, type, etic, bufer)
-                interface.showRule(inp)
+                interface.buildRule()
 
             if inp == 16:
                 inp = input("Imperio>>")
@@ -148,6 +134,7 @@ def initialInterface():
 
             if inp == 22:
                 interface.buildCreator()
+
 
             if inp == 9:
                 break
