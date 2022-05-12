@@ -107,7 +107,7 @@ class interface:
         return self.world.returnBiznes(imperio, name, option)
 
     def addResourceToVillage(self, imperio, name, resource, much):
-        self.world.addResourceToVillage(imperio, name, resource,a much)
+        self.world.addResourceToVillage(imperio, name, resource, much)
 
     def saveWorld(self):
         save(self.world)
